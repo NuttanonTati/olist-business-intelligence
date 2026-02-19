@@ -3,87 +3,96 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
-st.set_page_config(page_title="Olist 360 Business Intelligence", layout="wide")
+# 1. ตั้งค่าหน้าเว็บ
+st.set_page_config(page_title="Olist Ultimate Dashboard", layout="wide")
 
-# --- 1. โหลดข้อมูล (ใช้ Path แบบ Relative เพื่อให้รันบนเว็บได้) ---
-@st.cache_data
-def load_all_data():
-    # สังเกตว่าจารย์ลบ D:\db\ ออกแล้วนะครับ เพื่อให้มันหาไฟล์ในโฟลเดอร์เดียวกัน
-    rfm = pd.read_csv('rfm_result.csv')
-    forecast = pd.read_csv('sales_forecast.csv')
-    top_cats = pd.read_csv('top_categories.csv')
-    forecast['ds'] = pd.to_datetime(forecast['ds'])
-    return rfm, forecast, top_cats
-
-rfm_table, forecast_data, top_cats = load_all_data()
-
+# ลำดับความสำคัญของกลุ่มลูกค้า
 priority_order = ['Champions (สุดยอดลูกค้า)', 'Loyal Customers (ขาประจำ)', 
                   'New Customers (ลูกค้าใหม่)', 'At Risk (เริ่มห่างเหิน)', 'Lost (ขาจรที่หายไป)']
-rfm_table['Segment'] = pd.Categorical(rfm_table['Segment'], categories=priority_order, ordered=True)
 
-# --- 2. Dashboard Layout ---
-st.title("📦 Olist End-to-End Analytics")
+# 2. ฟังก์ชันโหลดข้อมูล (Relative Path สำหรับ GitHub)
+@st.cache_data
+def load_all_data():
+    return {
+        'rfm': pd.read_csv('rfm_result.csv'),
+        'forecast': pd.read_csv('sales_forecast.csv'),
+        'monthly': pd.read_csv('monthly_sales.csv'),
+        'cats': pd.read_csv('top_categories.csv'),
+        'logistics': pd.read_csv('category_logistics.csv'),
+        'states': pd.read_csv('state_sales.csv'),
+        'payments': pd.read_csv('payment_methods.csv'),
+        'hourly': pd.read_csv('hourly_orders.csv')
+    }
 
-tabs = st.tabs(["🏠 Executive Summary", "📈 Sales Forecast", "👥 Customer RFM", "🔍 Deep Dive"])
+try:
+    data = load_all_data()
+    rfm_table = data['rfm']
+    rfm_table['Segment'] = pd.Categorical(rfm_table['Segment'], categories=priority_order, ordered=True)
+except Exception as e:
+    st.error(f"กรุณาตรวจสอบว่ามีไฟล์ข้อมูลครบถ้วนใน Repository: {e}")
+    st.stop()
 
-# --- Tab 1: Project 1 Content ---
+# 3. Sidebar
+st.sidebar.title("🎯 Olist BI Control")
+st.sidebar.info("Dashboard นี้รวม Insight จาก 3 โปรเจกต์หลัก")
+selected_segments = st.sidebar.multiselect("Filter by RFM Segment:", priority_order, default=priority_order)
+
+# 4. Main Dashboard Layout
+st.title("🏆 Olist 360° Comprehensive Analytics")
+tabs = st.tabs(["🏠 Sales Overview", "🚚 Logistics & Geo", "👥 Customer RFM", "🔮 Forecasting"])
+
+# --- Tab 1: Sales Performance ---
 with tabs[0]:
-    st.subheader("Business Snapshot (Project 1)")
-    col1, col2 = st.columns(2)
+    col1, col2 = st.columns([2, 1])
     with col1:
-        st.write("Top 10 Product Categories")
-        fig_bar = px.bar(top_cats, x='price', y='product_category_name_english', orientation='h', 
-                         color='price', color_continuous_scale='Viridis')
-        st.plotly_chart(fig_bar, width='stretch')
+        st.subheader("Historical Revenue Trend")
+        fig_rev = px.line(data['monthly'], x='order_purchase_timestamp', y='price', template="plotly_white")
+        fig_rev.update_traces(line_color='#2E86C1', fill='tozeroy')
+        st.plotly_chart(fig_rev, use_container_width=True)
     with col2:
-        st.info("💡 Insight: หมวดหมู่สินค้ากลุ่ม Health & Beauty และ Watches เป็นตัวขับเคลื่อนรายได้หลัก")
+        st.subheader("Payment Methods")
+        fig_pay = px.pie(data['payments'], values='payment_value', names='payment_type', hole=0.4)
+        st.plotly_chart(fig_pay, use_container_width=True)
 
-# --- Tab 2 & 3: เหมือนเดิม (Project 2 & 3) ---
+    st.subheader("Top 10 Selling Categories")
+    st.bar_chart(data['cats'].set_index('product_category_name_english'))
+
+# --- Tab 2: Logistics & Geography ---
 with tabs[1]:
-    st.subheader("Future Predictions (Project 2)")
-    st.markdown("พยากรณ์ยอดขายพร้อมช่วงความเชื่อมั่น (Upper/Lower Bound)")
-    
-    fig_forecast = go.Figure()
+    c1, c2 = st.columns(2)
+    with c1:
+        st.subheader("Average Delivery Delay")
+        fig_log = px.bar(data['logistics'], x='delivery_time', y='product_category_name_english', 
+                         orientation='h', color='delivery_time', color_continuous_scale='Reds')
+        st.plotly_chart(fig_log, use_container_width=True)
+    with c2:
+        st.subheader("Hourly Ordering Pattern")
+        st.line_chart(data['hourly'].set_index('order_hour'))
 
-    # เส้นขอบบน (Upper Bound)
-    fig_forecast.add_trace(go.Scatter(
-        x=forecast_data['ds'], y=forecast_data['yhat_upper'],
-        mode='lines', line=dict(width=0), showlegend=False, name='Upper Bound'
-    ))
+    st.subheader("Sales by State")
+    st.bar_chart(data['states'].set_index('customer_state'))
 
-    # เส้นขอบล่าง (Lower Bound) - ใช้ fill='tonexty' เพื่อระบายสีระหว่างกลาง
-    fig_forecast.add_trace(go.Scatter(
-        x=forecast_data['ds'], y=forecast_data['yhat_lower'],
-        mode='lines', line=dict(width=0), fill='tonexty', 
-        fillcolor='rgba(255, 75, 75, 0.2)', showlegend=False, name='Lower Bound'
-    ))
-
-    # เส้นพยากรณ์หลัก (yhat) - เส้นสีแดงเข้ม
-    fig_forecast.add_trace(go.Scatter(
-        x=forecast_data['ds'], y=forecast_data['yhat'],
-        mode='lines', line=dict(color='#FF4B4B', width=3), name='Predicted Sales'
-    ))
-
-    fig_forecast.update_layout(
-        hovermode="x unified",
-        template="plotly_white",
-        xaxis_title="Date",
-        yaxis_title="Revenue (BRL)",
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-    )
-    
-    st.plotly_chart(fig_forecast, width='stretch')
-    
-    st.info("💡 บริเวณแถบสีแดงจางๆ คือช่วงที่ยอดขายมีโอกาสเกิดขึ้นจริง (Margin of Error)")
-
+# --- Tab 3: Customer RFM ---
 with tabs[2]:
-    st.subheader("Customer Behavior (Project 3)")
-    fig_pie = px.pie(rfm_table, names='Segment', hole=0.4, category_orders={"Segment": priority_order})
-    st.plotly_chart(fig_pie, width='stretch')
+    st.subheader("RFM Customer Segmentation")
+    f_rfm = rfm_table[rfm_table['Segment'].isin(selected_segments)]
+    c3, c4 = st.columns([1, 2])
+    with c3:
+        fig_pie = px.pie(f_rfm, names='Segment', hole=0.4, category_orders={"Segment": priority_order})
+        st.plotly_chart(fig_pie, use_container_width=True)
+    with c4:
+        summary = f_rfm.groupby('Segment', observed=True).agg({'Monetary': 'mean', 'customer_unique_id': 'count'}).reset_index()
+        st.dataframe(summary.style.format({'Monetary': '{:,.2f}'}), use_container_width=True)
 
+# --- Tab 4: Forecasting ---
 with tabs[3]:
-    st.subheader("Lost Customers Action Plan")
-    st.dataframe(rfm_table[rfm_table['Segment'].str.contains('Lost')].sort_values('Monetary', ascending=False))
+    st.subheader("📈 Sales Forecast (Prophet Model)")
+    f_data = data['forecast']
+    f_data['ds'] = pd.to_datetime(f_data['ds'])
+    fig_f = go.Figure()
+    fig_f.add_trace(go.Scatter(x=f_data['ds'], y=f_data['yhat_upper'], line=dict(width=0), showlegend=False))
+    fig_f.add_trace(go.Scatter(x=f_data['ds'], y=f_data['yhat_lower'], fill='tonexty', fillcolor='rgba(255,0,0,0.1)', line=dict(width=0), showlegend=False))
+    fig_f.add_trace(go.Scatter(x=f_data['ds'], y=f_data['yhat'], line=dict(color='#FF4B4B', width=3), name='Predicted'))
+    st.plotly_chart(fig_f, use_container_width=True)
 
-st.markdown("---")
-st.caption(f"Last updated: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M')} | Analyst: Pitch")
+st.caption(f"Developed by Pitch | Last updated: {pd.Timestamp.now().strftime('%Y-%m-%d')}")
