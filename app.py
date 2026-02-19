@@ -80,7 +80,6 @@ with tabs[2]:
     c3, c4 = st.columns([1, 2]) # c3 คือฝั่งกราฟ, c4 คือฝั่งตาราง
     
     with c3:
-        # --- ก๊อปปี้ส่วนนี้ไปทับของเดิมใน c3 ได้เลยครับ ---
         fig_pie = px.pie(
             f_rfm, 
             names='Segment', 
@@ -105,7 +104,6 @@ with tabs[2]:
         # ---------------------------------------------
 
     with c4:
-        # ตรงนี้ไม่ต้องแก้ครับ เป็นตารางสรุปเหมือนเดิม
         summary = f_rfm.groupby('Segment', observed=True).agg({
             'Monetary': 'mean', 
             'customer_unique_id': 'count'
@@ -124,5 +122,6 @@ with tabs[3]:
     st.plotly_chart(fig_f, use_container_width=True)
 
 st.caption(f"Developed by Pitch | Last updated: {pd.Timestamp.now().strftime('%Y-%m-%d')}")
+
 
 
