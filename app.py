@@ -76,40 +76,42 @@ with tabs[1]:
 with tabs[2]:
     st.subheader("RFM Customer Segmentation")
     f_rfm = rfm_table[rfm_table['Segment'].isin(selected_segments)]
-    c3, c4 = st.columns([1, 2])
+    
+    c3, c4 = st.columns([1, 2]) # c3 คือฝั่งกราฟ, c4 คือฝั่งตาราง
+    
     with c3:
-        # --- ปรับปรุงกราฟ Donut ให้ตัวหนังสือไม่แปลก ---
-fig_pie = px.pie(
-    f_rfm, 
-    names='Segment', 
-    hole=0.4, 
-    category_orders={"Segment": priority_order},
-    color_discrete_sequence=px.colors.sequential.RdBu_r # ใช้โทนสีให้ดูหรูขึ้น
-)
+        # --- ก๊อปปี้ส่วนนี้ไปทับของเดิมใน c3 ได้เลยครับ ---
+        fig_pie = px.pie(
+            f_rfm, 
+            names='Segment', 
+            hole=0.4, 
+            category_orders={"Segment": priority_order},
+            color_discrete_sequence=px.colors.sequential.RdBu_r
+        )
 
-# ใช้คำสั่ง update_traces เพื่อจัดการตัวหนังสือครับ
-fig_pie.update_traces(
-    textposition='inside', # เอาตัวหนังสือไว้ข้างใน
-    textinfo='percent',    # โชว์แค่ % ก็พอครับ ชื่อกลุ่มให้คนดูที่ Legend แทน
-    insidetextorientation='horizontal' # วางตัวอักษรแนวนอนอ่านง่ายกว่า
-)
+        # สั่งจัดการตัวหนังสือที่มัน 'แปลก' ให้คลีนขึ้น
+        fig_pie.update_traces(
+            textposition='inside', 
+            textinfo='percent',    # โชว์แค่ % ในวงกลม
+            insidetextorientation='horizontal'
+        )
 
-fig_pie.update_layout(
-    legend=dict(
-        orientation="v",      # วางคำอธิบายเป็นแนวตั้ง
-        yanchor="middle", 
-        y=0.5, 
-        xanchor="left", 
-        x=1.1                 # ขยับ Legend ออกไปข้าง ๆ ไม่ให้ทับกราฟ
-    ),
-    margin=dict(l=20, r=20, t=20, b=20) # เว้นระยะขอบให้หายใจออก
-)
+        fig_pie.update_layout(
+            legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.05),
+            margin=dict(l=10, r=10, t=10, b=10)
+        )
+        
+        st.plotly_chart(fig_pie, use_container_width=True)
+        # ---------------------------------------------
 
-st.plotly_chart(fig_pie, use_container_width=True)
     with c4:
-        summary = f_rfm.groupby('Segment', observed=True).agg({'Monetary': 'mean', 'customer_unique_id': 'count'}).reset_index()
+        # ตรงนี้ไม่ต้องแก้ครับ เป็นตารางสรุปเหมือนเดิม
+        summary = f_rfm.groupby('Segment', observed=True).agg({
+            'Monetary': 'mean', 
+            'customer_unique_id': 'count'
+        }).reset_index()
         st.dataframe(summary.style.format({'Monetary': '{:,.2f}'}), use_container_width=True)
-
+      
 # --- Tab 4: Forecasting ---
 with tabs[3]:
     st.subheader("📈 Sales Forecast (Prophet Model)")
@@ -122,4 +124,5 @@ with tabs[3]:
     st.plotly_chart(fig_f, use_container_width=True)
 
 st.caption(f"Developed by Pitch | Last updated: {pd.Timestamp.now().strftime('%Y-%m-%d')}")
+
 
