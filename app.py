@@ -73,13 +73,15 @@ with tabs[1]:
     st.bar_chart(data['states'].set_index('customer_state'))
 
 # --- Tab 3: Customer RFM ---
+# --- Tab 3 (หรือ tabs[2]): Customer RFM ---
 with tabs[2]:
-    st.subheader("RFM Customer Segmentation")
+    st.subheader("RFM Customer Segmentation Analysis")
     f_rfm = rfm_table[rfm_table['Segment'].isin(selected_segments)]
     
-    c3, c4 = st.columns([1, 2]) # c3 คือฝั่งกราฟ, c4 คือฝั่งตาราง
+    c3, c4 = st.columns([1, 2])
     
     with c3:
+        # วาด Donut Chart ใหม่ให้รองรับชื่อกลุ่มที่ยาว
         fig_pie = px.pie(
             f_rfm, 
             names='Segment', 
@@ -88,20 +90,23 @@ with tabs[2]:
             color_discrete_sequence=px.colors.sequential.RdBu_r
         )
 
-        # สั่งจัดการตัวหนังสือที่มัน 'แปลก' ให้คลีนขึ้น
+        # แก้ไขอาการ "ตัวหนังสือแปลก" โดยโชว์เฉพาะ % ในวงกลม
         fig_pie.update_traces(
             textposition='inside', 
-            textinfo='percent',    # โชว์แค่ % ในวงกลม
+            textinfo='percent',    # แสดงแค่เปอร์เซ็นต์พอครับ ชื่อกลุ่มดูที่ Legend เอา
             insidetextorientation='horizontal'
         )
 
         fig_pie.update_layout(
-            legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.05),
+            legend=dict(
+                orientation="v", 
+                yanchor="middle", y=0.5, 
+                xanchor="left", x=1.05
+            ),
             margin=dict(l=10, r=10, t=10, b=10)
         )
         
         st.plotly_chart(fig_pie, use_container_width=True)
-        # ---------------------------------------------
 
     with c4:
         summary = f_rfm.groupby('Segment', observed=True).agg({
@@ -122,6 +127,7 @@ with tabs[3]:
     st.plotly_chart(fig_f, use_container_width=True)
 
 st.caption(f"Developed by Pitch | Last updated: {pd.Timestamp.now().strftime('%Y-%m-%d')}")
+
 
 
 
